@@ -5,12 +5,7 @@ Created on Nov 26, 2018
 '''
 
 import argparse
-import random
 import math
-from math import log
-import converters
-from cache import Cache
-from memory import Memory
 from __builtin__ import int
 from macpath import split
 
