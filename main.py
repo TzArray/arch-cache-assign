@@ -5,7 +5,7 @@ import re
 import sys
 
 class Node:
-    def __init__(self, valid):
+    def __init__(self):
         self.time = 0
         self.tag = 0
         self.valid = 1
@@ -27,19 +27,27 @@ class Cache:
         self.cacheHit = 0
         self.compMiss = 0
         self.confMiss = 0
-        self.cacheArr.node = [[Node() for j in range(assoc)] for i in range(indices)]
+        self.cacheArr = [[Node() for j in range(int(assoc))] for i in range(int(indices))]
 
 
     def write(self, var, cache, length = 4):
         writeVar = self.getBinAdd(var)
         self.getDecimals(writeVar, cache)
-        self.checkCache(cache)
+        doAgain = int((cache.offset + length) / cache.blockSize) + 1
+        while doAgain > 0:
+            self.checkCache(cache)
+            cache.index += 1
+            if cache.index >= cache.indices:
+                cache.index = 0
+                cache.tag += 1
+            doAgain -= 1
 
 
     def getBinAdd(self, var):
         convInt = int(var, 16)
         binRep = format(convInt, '0>32b')
         return binRep
+
 
     # TODO: figure out what to do when the index is out of range
     def getDecimals(self, var, cache):
@@ -64,37 +72,52 @@ class Cache:
     def checkCache(self, cache):
         cache.total += 1
         for i in range(0, assoc):
-            if cache.cacheArr.node[cache.index][i].valid == 1:
-                cache.cacheArr.node[cache.index][i].valid = 0
+            if cache.cacheArr[cache.index][i].valid == 1:
+                cache.cacheArr[cache.index][i].valid = 0
                 self.updateCacheNode(cache, i)
                 cache.compMiss += 1
                 return
-            if cache.cacheArr.node[cache.index][i].tag == cache.tag:
+            if cache.cacheArr[cache.index][i].tag == cache.tag:
                 cache.cacheHit += 1
                 return
-        cache.confMiss +=1
+        cache.confMiss += 1
         if cache.policy == 'RR':
             self.roundReplace(cache)
         elif cache.policy == 'RND':
             self.randomReplace(cache)
         elif cache.policy == 'LRU':
-            self.randomReplace(cache)
+            self.recentReplace(cache)
 
     def updateCacheNode(self, cache, col):
         for i in range(0, col):
-            if cache.cacheArr.node[cache.index][i].valid == 0:
-                cache.cacheArr.node[cache.index][i].time += 1
-        cache.cacheArr.node[cache.index][col].tag = 0
-        cache.cacheArr.node[cache.index][col].time += 1
+            if cache.cacheArr[cache.index][i].valid == 0:
+                cache.cacheArr[cache.index][i].time += 1
+        cache.cacheArr[cache.index][col].tag = cache.tag
+        cache.cacheArr[cache.index][col].time += 0
 
-
-    def roundReplace(self, cache):
-
-
-
+    # chooses a column at random and replaces that one
     def randomReplace(self, cache):
         randInt = random.randint(0, cache.assoc)
-        cache.cacheArr[cache.index][randInt] = cache.tag
+        self.updateCacheNode(cache, randInt)
+
+    # replaces one with time = assoc
+    def roundReplace(self, cache):
+        for i in range(0, assoc):
+            if cache.cacheArr[cache.index][i].time == i - 1:
+                col = i
+        self.updateCacheNode(cache, i)
+
+    # looks for highest time and replaces that one
+    def recentReplace(self, cache):
+        replace = 0
+        for i in range(0, assoc):
+            if cache.cacheArr[cache.index][i].time > cache.cacheArr[cache.index][replace].time:
+                replace = i
+        self.updateCacheNode(cache, replace)
+
+
+
+
 
 
 """
@@ -178,8 +201,7 @@ print("Cache Hits: %d " % newCache.cacheHit)
 print("Cache Misses: %d " % (newCache.compMiss + newCache.confMiss))
 print("      >Compulsory Misses: %d " % newCache.compMiss)
 print("      >Conflict Misses: %d " % newCache.confMiss)
-
-print("\n=================\n")
+print("=================")
 
 
 
