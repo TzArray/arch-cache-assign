@@ -1,8 +1,14 @@
 import argparse
 import math
+import random
 import re
 import sys
 
+class Node:
+    def __init__(self, valid):
+        self.time = 0
+        self.tag = 0
+        self.valid = 1
 
 class Cache:
     def __init__(self, cacheSize, blockSize, assoc, policy, indices, index, tag, offset):
@@ -21,7 +27,8 @@ class Cache:
         self.cacheHit = 0
         self.compMiss = 0
         self.confMiss = 0
-        self.cacheArr = [[1 for i in range(0,self.indices)] for j in range(0,self.assoc)]
+        self.cacheArr.node = [[Node() for j in range(assoc)] for i in range(indices)]
+
 
     def write(self, var, cache, length = 4):
         writeVar = self.getBinAdd(var)
@@ -53,17 +60,41 @@ class Cache:
             pow +=1
         return val
 
+
     def checkCache(self, cache):
         cache.total += 1
-        for i in range(0,assoc):
-            if cache.cacheArr[cache.index][i] == 1:
+        for i in range(0, assoc):
+            if cache.cacheArr.node[cache.index][i].valid == 1:
+                cache.cacheArr.node[cache.index][i].valid = 0
+                self.updateCacheNode(cache, i)
                 cache.compMiss += 1
-                cache.cacheArr[cache.index][i] = cache.tag
-            if cache.cacheArr[cache.index][i] == cache.tag:
+                return
+            if cache.cacheArr.node[cache.index][i].tag == cache.tag:
                 cache.cacheHit += 1
+                return
+        cache.confMiss +=1
+        if cache.policy == 'RR':
+            self.roundReplace(cache)
+        elif cache.policy == 'RND':
+            self.randomReplace(cache)
+        elif cache.policy == 'LRU':
+            self.randomReplace(cache)
+
+    def updateCacheNode(self, cache, col):
+        for i in range(0, col):
+            if cache.cacheArr.node[cache.index][i].valid == 0:
+                cache.cacheArr.node[cache.index][i].time += 1
+        cache.cacheArr.node[cache.index][col].tag = 0
+        cache.cacheArr.node[cache.index][col].time += 1
+
+
+    def roundReplace(self, cache):
 
 
 
+    def randomReplace(self, cache):
+        randInt = random.randint(0, cache.assoc)
+        cache.cacheArr[cache.index][randInt] = cache.tag
 
 
 """
@@ -71,11 +102,11 @@ This parses the arguments from the command line.
 """
 policies = ["RR", "RND", "LRU"]
 parser = argparse.ArgumentParser()
-parser.add_argument("-f", metavar="FILENAME")
-parser.add_argument("-s", metavar="OURCACHE", type=int)
-parser.add_argument("-b", metavar="BLOCK", type=int)
-parser.add_argument("-a", metavar="ASSOC", type=int)
-parser.add_argument("-r", metavar="POLICY", choices=policies)
+parser.add_argument("-f", metavar="FILENAME", required=True)
+parser.add_argument("-s", metavar="OURCACHE", type=int, required=True)
+parser.add_argument("-b", metavar="BLOCK", type=int, required=True)
+parser.add_argument("-a", metavar="ASSOC", type=int, required=True)
+parser.add_argument("-r", metavar="POLICY", choices=policies, required=True)
 args = parser.parse_args()
 
 """
@@ -103,6 +134,7 @@ except:
 
 # initialize cache
 newCache = Cache(cacheSize, blockSize, assoc, policy, indices, indexSize, tagSize, offset)
+# newCache.initCacheArr(newCache)
 
 for line in file:
     # skip new lines
@@ -126,7 +158,7 @@ file.close()
 
 print("\nCache Simulator CS 3853 Fall 2018 - Group #***")
 print("\n=======Input=======")
-print("File Name: " + filename)
+print("Trace File: " + filename)
 print("Cache Size: " + str(cacheSize) + " KB")
 print("Block Size: " + str(blockSize) + " bytes")
 print("Associativity: " + str(assoc)+"-way")
@@ -140,7 +172,12 @@ print("Index Size: " + str(int(indexSize)) + " bits, Total Indices: " + str(int(
 print("Implementation Memory Size: " + str(int(memSize)) + " bytes")
 
 print("\n=======Results=======")
-print("Cache Hit Rate: %d \%" % (newCache.cacheHit / (newCache.cacheHit + newCache.compMiss + newCache.confMiss)))
+print("Total Cache Accesses: %d " % newCache.total)
+print("Cache Miss Rate: %f %%" % ((newCache.compMiss + newCache.confMiss)/newCache.total * 100))
+print("Cache Hits: %d " % newCache.cacheHit)
+print("Cache Misses: %d " % (newCache.compMiss + newCache.confMiss))
+print("      >Compulsory Misses: %d " % newCache.compMiss)
+print("      >Conflict Misses: %d " % newCache.confMiss)
 
 print("\n=================\n")
 
