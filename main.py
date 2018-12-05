@@ -49,7 +49,6 @@ class Cache:
         return binRep
 
 
-    # TODO: figure out what to do when the index is out of range
     def getDecimals(self, var, cache):
         off = var[-cache.offsetSize:]
         cache.offset = self.binToDec(off)
